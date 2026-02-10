@@ -1,0 +1,46 @@
+# Fly.io app configuration for SCRI AI Memory Hub
+app = "mycelium-memory-hub"
+primary_region = "ord"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "3002"
+  NODE_ENV = "production"
+  # SECURITY_MODE = "strict"
+  RATE_LIMIT_ENABLED = "true"
+  DISABLE_OLLAMA_DISCOVERY = "true"
+
+[[mounts]]
+  source = "scri_ai_data"
+  destination = "/app/data"
+
+[http_service]
+  internal_port = 3002
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+  max_machines_running = 1
+
+  [[http_service.checks]]
+    grace_period = "15s"
+    interval = "30s"
+    method = "GET"
+    timeout = "10s"
+    path = "/health"
+    headers = { "x-health-check" = "fly-io" }
+
+  [http_service.concurrency]
+    type = "connections"
+    hard_limit = 500
+    soft_limit = 250
+
+[[vm]]
+  memory = '512mb'
+  cpu_kind = 'shared'
+  cpus = 1
+
+[deploy]
+  strategy = "immediate"

@@ -1,0 +1,325 @@
+asyncapi: 2.6.0
+info:
+  title: SCRI Federation Hub v2 WebSocket API
+  version: 2.0.0
+  description: |
+    Real-time WebSocket protocol for the SCRI Federation Hub.
+    Supports node registration, heartbeats, messaging, and event subscriptions.
+
+servers:
+  production:
+    url: wss://scri-core-memory.fly.dev
+    protocol: wss
+    description: Production WebSocket endpoint
+  local:
+    url: ws://localhost:8765
+    protocol: ws
+    description: Local development
+
+channels:
+  federation/register:
+    publish:
+      summary: Register node with federation
+      message:
+        $ref: '#/components/messages/NodeRegistration'
+
+  federation/heartbeat:
+    publish:
+      summary: Send heartbeat
+      message:
+        $ref: '#/components/messages/Heartbeat'
+
+  federation/subscribe:
+    publish:
+      summary: Subscribe to channels
+      message:
+        $ref: '#/components/messages/ChannelSubscription'
+
+  federation/message:
+    publish:
+      summary: Send message to node/channel
+      message:
+        $ref: '#/components/messages/FederationMessage'
+    subscribe:
+      summary: Receive messages
+      message:
+        $ref: '#/components/messages/FederationMessage'
+
+  entity/register:
+    publish:
+      summary: Register entity (Nexus UI)
+      message:
+        $ref: '#/components/messages/EntityRegistration'
+
+  federation/knowledge/sync:
+    publish:
+      summary: Initiate knowledge sync
+      message:
+        $ref: '#/components/messages/KnowledgeSyncRequest'
+
+  federation/file/upload:
+    publish:
+      summary: Upload file
+      message:
+        $ref: '#/components/messages/FileUpload'
+
+  # Server-sent events
+  federation/node_joined:
+    subscribe:
+      summary: Node joined federation
+      message:
+        $ref: '#/components/messages/NodeJoinedEvent'
+
+  federation/node_left:
+    subscribe:
+      summary: Node left federation
+      message:
+        $ref: '#/components/messages/NodeLeftEvent'
+
+  federation/health_alert:
+    subscribe:
+      summary: Health alert
+      message:
+        $ref: '#/components/messages/HealthAlertEvent'
+
+  federation/entity_registered:
+    subscribe:
+      summary: Entity registered
+      message:
+        $ref: '#/components/messages/EntityRegisteredEvent'
+
+  federation/degraded:
+    subscribe:
+      summary: Federation degradation event
+      message:
+        $ref: '#/components/messages/DegradationEvent'
+
+components:
+  messages:
+    NodeRegistration:
+      payload:
+        type: object
+        required: [node_id, network]
+        properties:
+          node_id:
+            type: string
+          network:
+            type: object
+            properties:
+              ip_address:
+                type: string
+              port:
+                type: integer
+              public_url:
+                type: string
+          services:
+            type: array
+            items:
+              type: object
+              properties:
+                name:
+                  type: string
+                status:
+                  type: string
+                port:
+                  type: integer
+          capabilities:
+            type: array
+            items:
+              type: string
+          hardware:
+            type: object
+            properties:
+              cpu_cores:
+                type: integer
+              memory_gb:
+                type: number
+              gpu:
+                type: string
+          public_key:
+            type: string
+
+    Heartbeat:
+      payload:
+        type: object
+        required: [node_id]
+        properties:
+          node_id:
+            type: string
+          services:
+            type: array
+            items:
+              type: object
+              properties:
+                name:
+                  type: string
+                status:
+                  type: string
+          resources:
+            type: object
+            properties:
+              cpu_percent:
+                type: number
+              memory_percent:
+                type: number
+              disk_percent:
+                type: number
+
+    ChannelSubscription:
+      payload:
+        type: object
+        required: [channels]
+        properties:
+          channels:
+            type: array
+            items:
+              type: string
+          node_filter:
+            type: array
+            items:
+              type: string
+
+    FederationMessage:
+      payload:
+        type: object
+        required: [message_id, from_node]
+        properties:
+          message_id:
+            type: string
+          from_node:
+            type: string
+          to_node:
+            type: string
+          channel:
+            type: string
+          event_type:
+            type: string
+          data:
+            type: object
+          persist:
+            type: boolean
+          ttl_seconds:
+            type: integer
+          ephemeral:
+            type: boolean
+
+    EntityRegistration:
+      payload:
+        type: object
+        required: [entity_id, name]
+        properties:
+          entity_id:
+            type: string
+          name:
+            type: string
+          type:
+            type: string
+          capabilities:
+            type: array
+            items:
+              type: string
+          metadata:
+            type: object
+
+    KnowledgeSyncRequest:
+      payload:
+        type: object
+        required: [source_node, target_node, category, documents]
+        properties:
+          source_node:
+            type: string
+          target_node:
+            type: string
+          category:
+            type: string
+          documents:
+            type: array
+            items:
+              type: object
+
+    FileUpload:
+      payload:
+        type: object
+        required: [content, metadata]
+        properties:
+          content:
+            type: string
+            format: binary
+          metadata:
+            type: object
+            properties:
+              filename:
+                type: string
+              content_type:
+                type: string
+              size:
+                type: integer
+
+    NodeJoinedEvent:
+      payload:
+        type: object
+        properties:
+          node_id:
+            type: string
+          timestamp:
+            type: string
+            format: date-time
+
+    NodeLeftEvent:
+      payload:
+        type: object
+        properties:
+          node_id:
+            type: string
+          reason:
+            type: string
+          timestamp:
+            type: string
+            format: date-time
+
+    HealthAlertEvent:
+      payload:
+        type: object
+        properties:
+          node_id:
+            type: string
+          severity:
+            type: string
+            enum: [warning, critical]
+          metric:
+            type: string
+          value:
+            type: number
+          threshold:
+            type: number
+          timestamp:
+            type: string
+            format: date-time
+
+    EntityRegisteredEvent:
+      payload:
+        type: object
+        properties:
+          entity_id:
+            type: string
+          name:
+            type: string
+          type:
+            type: string
+          timestamp:
+            type: string
+            format: date-time
+
+    DegradationEvent:
+      payload:
+        type: object
+        properties:
+          level:
+            type: integer
+          disabled_features:
+            type: array
+            items:
+              type: string
+          timestamp:
+            type: string
+            format: date-time

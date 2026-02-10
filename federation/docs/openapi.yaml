@@ -1,0 +1,541 @@
+openapi: 3.0.3
+info:
+  title: SCRI Federation Hub v2 API
+  description: |
+    Central coordinator API for the SCRI-IOS mesh network.
+    Provides node registration, health monitoring, task routing, and Nexus UI integration.
+  version: 2.0.0
+  contact:
+    name: SCRI Constellation
+    url: https://scri.dev
+  license:
+    name: MIT
+
+servers:
+  - url: https://scri-core-memory.fly.dev
+    description: Production (Fly.io)
+  - url: http://192.168.0.69:8766
+    description: Local Federation Bridge
+  - url: http://localhost:8765
+    description: Local Development
+
+tags:
+  - name: Federation Status
+    description: Federation-wide status and health
+  - name: Nodes
+    description: Node registration and management
+  - name: Messaging
+    description: Inter-node messaging
+  - name: Access Control
+    description: Entity blocking and allowlisting
+  - name: Memory
+    description: Memory Hub integration
+  - name: Ogma
+    description: Ogma AI integration
+  - name: Metrics
+    description: Prometheus metrics
+
+paths:
+  /api/federation/status:
+    get:
+      tags: [Federation Status]
+      summary: Get federation status
+      description: Returns bridge status, URLs, message stats, and entity lists
+      responses:
+        '200':
+          description: Federation status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FederationStatus'
+
+  /api/federation/health:
+    get:
+      tags: [Federation Status]
+      summary: Get bridge health
+      responses:
+        '200':
+          description: Bridge health status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+
+  /api/federation/hub/health:
+    get:
+      tags: [Federation Status]
+      summary: Get Fly.io hub health
+      responses:
+        '200':
+          description: Hub health status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+
+  /api/federation/external-entities:
+    get:
+      tags: [Federation Status]
+      summary: List external entities
+      responses:
+        '200':
+          description: List of external entities
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ExternalEntity'
+
+  /api/federation/send:
+    post:
+      tags: [Messaging]
+      summary: Send message to external entity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendMessageRequest'
+      responses:
+        '200':
+          description: Message sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /api/federation/ping/{entity}:
+    get:
+      tags: [Messaging]
+      summary: Ping an entity
+      parameters:
+        - name: entity
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Ping response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PingResponse'
+
+  /api/mycelium/message:
+    post:
+      tags: [Messaging]
+      summary: Post local mycelium message
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MyceliumMessage'
+      responses:
+        '200':
+          description: Message posted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /api/mycelium/messages:
+    get:
+      tags: [Messaging]
+      summary: Get mycelium messages
+      parameters:
+        - name: for_agent
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: Messages list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MyceliumMessage'
+
+  /api/federation/access/block/{entity_id}:
+    post:
+      tags: [Access Control]
+      summary: Block an entity
+      parameters:
+        - name: entity_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Entity blocked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessControlResponse'
+
+  /api/federation/access/unblock/{entity_id}:
+    post:
+      tags: [Access Control]
+      summary: Unblock an entity
+      parameters:
+        - name: entity_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Entity unblocked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessControlResponse'
+
+  /api/federation/access/allow/{entity_id}:
+    post:
+      tags: [Access Control]
+      summary: Add entity to allowlist
+      parameters:
+        - name: entity_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Entity allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessControlResponse'
+
+  /api/federation/access/reset:
+    post:
+      tags: [Access Control]
+      summary: Reset access control lists
+      responses:
+        '200':
+          description: Lists reset
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessControlResponse'
+
+  /api/federation/memory/store:
+    post:
+      tags: [Memory]
+      summary: Store memory in hub
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemoryStoreRequest'
+      responses:
+        '200':
+          description: Memory stored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemoryResponse'
+
+  /api/federation/memory/search:
+    get:
+      tags: [Memory]
+      summary: Search memories
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Memory'
+
+  /api/federation/ogma/answer:
+    post:
+      tags: [Ogma]
+      summary: Get Ogma answer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OgmaRequest'
+      responses:
+        '200':
+          description: Ogma response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OgmaResponse'
+
+  /api/mycelium/v1/events/joins:
+    get:
+      tags: [Federation Status]
+      summary: Get recent join events
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Join events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/JoinEvent'
+
+  /api/mycelium/entities:
+    get:
+      tags: [Federation Status]
+      summary: Get registered entities
+      responses:
+        '200':
+          description: Entity list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Entity'
+
+  /metrics:
+    get:
+      tags: [Metrics]
+      summary: Prometheus metrics
+      responses:
+        '200':
+          description: Prometheus format metrics
+          content:
+            text/plain:
+              schema:
+                type: string
+
+components:
+  schemas:
+    FederationStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [operational, degraded]
+        federation:
+          type: object
+          properties:
+            mode:
+              type: string
+              enum: [open, approval, invite]
+            nodes_online:
+              type: integer
+            nodes_total:
+              type: integer
+            entities_registered:
+              type: integer
+        health:
+          $ref: '#/components/schemas/HealthStatus'
+        uptime:
+          type: number
+        timestamp:
+          type: string
+          format: date-time
+
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+        checks:
+          type: object
+          additionalProperties:
+            type: boolean
+
+    ExternalEntity:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+        status:
+          type: string
+        capabilities:
+          type: array
+          items:
+            type: string
+        last_seen:
+          type: string
+          format: date-time
+
+    SendMessageRequest:
+      type: object
+      required: [to, message]
+      properties:
+        to:
+          type: string
+        message:
+          type: string
+        message_type:
+          type: string
+        correlation_id:
+          type: string
+
+    MessageResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message_id:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    PingResponse:
+      type: object
+      properties:
+        entity:
+          type: string
+        status:
+          type: string
+        latency_ms:
+          type: number
+
+    MyceliumMessage:
+      type: object
+      properties:
+        id:
+          type: string
+        from:
+          type: string
+        to:
+          type: string
+        message:
+          type: string
+        message_type:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    AccessControlResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        entity_id:
+          type: string
+        action:
+          type: string
+
+    MemoryStoreRequest:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+        context:
+          type: object
+        memory_type:
+          type: string
+
+    MemoryResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        memory_id:
+          type: string
+
+    Memory:
+      type: object
+      properties:
+        id:
+          type: string
+        message:
+          type: string
+        context:
+          type: object
+        memory_type:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    OgmaRequest:
+      type: object
+      required: [question]
+      properties:
+        question:
+          type: string
+        context:
+          type: object
+
+    OgmaResponse:
+      type: object
+      properties:
+        answer:
+          type: string
+        sources:
+          type: array
+          items:
+            type: string
+
+    JoinEvent:
+      type: object
+      properties:
+        entity_id:
+          type: string
+        entity_name:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    Entity:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+        status:
+          type: string
+        capabilities:
+          type: array
+          items:
+            type: string
+        registered_at:
+          type: string
+          format: date-time

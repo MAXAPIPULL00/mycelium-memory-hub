@@ -1,0 +1,12 @@
+node_modules/
+*.db
+.env
+.env.local
+logs/
+data/
+database/backups/
+*.log
+coverage/
+tests/.test-db/
+.DS_Store
+Thumbs.db

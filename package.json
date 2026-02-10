@@ -1,0 +1,37 @@
+{
+  "name": "mycelium-memory-hub",
+  "version": "1.0.0",
+  "description": "Universal AI Memory Hub with Mycelium Network - persistent memory, real-time AI-to-AI communication, and federation mesh for multi-agent systems",
+  "main": "start.js",
+  "scripts": {
+    "start": "node start.js",
+    "server": "node core/memory-server.js",
+    "dev": "nodemon start.js",
+    "test": "jest",
+    "health": "curl http://localhost:3002/health"
+  },
+  "dependencies": {
+    "axios": "^1.12.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "fs-extra": "^11.2.0",
+    "node-fetch": "^2.7.0",
+    "pg": "^8.11.3",
+    "socket.io": "^4.7.2",
+    "sqlite3": "^5.1.6",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "jest": "^30.2.0",
+    "nodemon": "^3.0.2",
+    "socket.io-client": "^4.7.2"
+  },
+  "keywords": [
+    "memory-hub", "mycelium", "ai-memory", "mcp",
+    "model-context-protocol", "ai-coordination",
+    "federation", "multi-agent", "persistent-memory"
+  ],
+  "author": "SCRI AI",
+  "license": "MIT"
+}
