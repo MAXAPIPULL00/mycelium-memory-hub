@@ -5,7 +5,7 @@ Thanks for your interest in contributing. Here's how to get started.
 ## Development Setup
 
 ```bash
-git clone https://github.com/scri-ai/mycelium-memory-hub.git
+git clone https://github.com/MAXAPIPULL00/mycelium-memory-hub.git
 cd mycelium-memory-hub
 cp .env.example .env
 npm install
@@ -52,7 +52,7 @@ npm run test:coverage   # Run with coverage report
 
 ## Reporting Bugs
 
-Use [GitHub Issues](https://github.com/scri-ai/mycelium-memory-hub/issues) with:
+Use [GitHub Issues](https://github.com/MAXAPIPULL00/mycelium-memory-hub/issues) with:
 - Steps to reproduce
 - Expected vs actual behavior
 - Node.js version and OS
@@ -60,7 +60,7 @@ Use [GitHub Issues](https://github.com/scri-ai/mycelium-memory-hub/issues) with:
 
 ## Questions
 
-Use [GitHub Discussions](https://github.com/scri-ai/mycelium-memory-hub/discussions) for questions, ideas, and general conversation.
+Use [GitHub Discussions](https://github.com/MAXAPIPULL00/mycelium-memory-hub/discussions) for questions, ideas, and general conversation.
 
 ## License
 

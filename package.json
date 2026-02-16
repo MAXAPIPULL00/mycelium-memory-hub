@@ -32,6 +32,14 @@
     "model-context-protocol", "ai-coordination",
     "federation", "multi-agent", "persistent-memory"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MAXAPIPULL00/mycelium-memory-hub.git"
+  },
+  "homepage": "https://github.com/MAXAPIPULL00/mycelium-memory-hub#readme",
+  "bugs": {
+    "url": "https://github.com/MAXAPIPULL00/mycelium-memory-hub/issues"
+  },
   "author": "SCRI AI",
   "license": "MIT"
 }

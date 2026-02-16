@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-18%2B-green.svg)](https://nodejs.org/)
-[![Tests](https://img.shields.io/badge/tests-jest-red.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-58%20passing-green.svg)](tests/)
 
 *Your AIs forget everything. This fixes that.*
 
@@ -73,12 +73,21 @@ Hub starts on `http://localhost:3002`. Health check at `/health`.
 ## Testing
 
 ```bash
-npm test                  # Run all tests
+npm test                  # Run all 58 tests
 npx jest --coverage       # Run with coverage report
+npx jest tests/memory-database.test.js  # Run a specific suite
 ```
 
-Tests cover the core modules: context manager, memory database, rate
-limiter, and visitor tracker. Coverage reports output to `coverage/`.
+The test suite covers:
+
+| Suite | Tests | What it covers |
+|-------|-------|---------------|
+| `context-manager.test.js` | 20 | Conversation storage, message type detection, context building, cache management |
+| `memory-database.test.js` | 18 | CRUD for conversations/projects/patterns/sessions, analytics, upserts |
+| `visitor-tracker.test.js` | 11 | AI agent detection, request logging, visitor history limits |
+| `rate-limiter.test.js` | 9 | Default limits, per-node custom limits, usage tracking, warning thresholds |
+
+Coverage reports output to `coverage/`.
 
 ## Environment Variables
 
