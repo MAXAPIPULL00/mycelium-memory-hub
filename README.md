@@ -1,5 +1,9 @@
 # Mycelium Memory Hub
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Node.js](https://img.shields.io/badge/Node.js-18%2B-green.svg)](https://nodejs.org/)
+[![Tests](https://img.shields.io/badge/tests-jest-red.svg)](tests/)
+
 *Your AIs forget everything. This fixes that.*
 
 ---
@@ -57,7 +61,7 @@ same nervous system.
 ## Quick Start
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/MAXAPIPULL00/mycelium-memory-hub.git
 cd mycelium-memory-hub
 cp .env.example .env
 npm install
@@ -65,6 +69,32 @@ npm start
 ```
 
 Hub starts on `http://localhost:3002`. Health check at `/health`.
+
+## Testing
+
+```bash
+npm test                  # Run all tests
+npx jest --coverage       # Run with coverage report
+```
+
+Tests cover the core modules: context manager, memory database, rate
+limiter, and visitor tracker. Coverage reports output to `coverage/`.
+
+## Environment Variables
+
+Copy `.env.example` to `.env` before starting. All variables have
+sensible defaults for local development.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `NODE_ENV` | `development` | `development` uses SQLite, `production` uses PostgreSQL |
+| `PORT` | `3002` | Server port |
+| `DATABASE_URL` | *(empty)* | PostgreSQL connection string. Leave empty for SQLite dev mode |
+| `UPSTASH_REDIS_REST_URL` | *(empty)* | Upstash Redis URL for real-time session coordination (optional) |
+| `UPSTASH_REDIS_REST_TOKEN` | *(empty)* | Upstash Redis auth token (optional) |
+| `EXTERNAL_BRIDGE_TOKEN` | `change-me` | Auth token for external bridge connections. **Change this in production** |
+| `ALLOWED_FILE_WATCH_PATHS` | *(empty)* | Comma-separated paths the project scanner is allowed to watch |
+| `DISABLE_OLLAMA_DISCOVERY` | `false` | Set `true` to skip auto-discovery of local Ollama instances |
 
 ## Connect Your AI Tools
 
@@ -153,6 +183,51 @@ socket.on('ai:context-update', (data) => {
 });
 ```
 
+## Federation Services
+
+The federation mesh consists of 22 services organized by priority tier:
+
+**P0 — Core (3 services)**
+| Service | Purpose |
+|---------|---------|
+| Node Registry | Node registration, discovery, and heartbeat tracking |
+| WebSocket Pool | Persistent connections between federation nodes |
+| Health Aggregator | Federation-wide health monitoring and status rollup |
+
+**P1 — Extended (4 services)**
+| Service | Purpose |
+|---------|---------|
+| Service Router | Request routing and proxying across nodes |
+| Model Registry | Tracks available AI models across the federation |
+| Task Queue | Distributed task submission, assignment, and tracking |
+| Event Bus | Pub/sub event system for inter-service communication |
+
+**P2 — Advanced (12 services)**
+| Service | Purpose |
+|---------|---------|
+| Knowledge Sync | Sovereignty-aware data synchronization between nodes |
+| Identity Auth | Ed25519 key-based identity and token authentication |
+| Secrets Vault | Encrypted secret storage with access control |
+| Message Persistence | TTL-based durable message storage |
+| File Transfer | Binary file transfer between nodes |
+| Rate Limiter | Per-node request and bandwidth throttling |
+| Audit Logger | Security audit trail for all federation actions |
+| Offline Queue | Message queuing for temporarily disconnected nodes |
+| Governance | Federation modes (open/approval/invite) and role management |
+| Metrics | Prometheus-compatible metrics export |
+| Degradation | Graceful feature degradation under load or partial failure |
+| P2P Fallback | Direct node-to-node communication when the hub is unreachable |
+
+**Nexus UI Integration (3 services)**
+| Service | Purpose |
+|---------|---------|
+| Entity Registry | Persistent entity registration and metadata |
+| Access Control | Block/allow lists and entity permissions |
+| Nexus API | REST endpoints for dashboard and management UI |
+
+Services initialize in priority order. If a P2 service fails to start,
+the hub continues running with P0 and P1 intact (graceful degradation).
+
 ## Deploy
 
 ### Local (dev)
@@ -171,6 +246,24 @@ fly deploy
 
 PostgreSQL for persistence, optional Upstash Redis for high-performance
 real-time session coordination.
+
+## How It Compares
+
+| Feature | Mycelium | Mem0 | LangChain Memory | MemGPT |
+|---------|----------|------|-----------------|--------|
+| Persistent memory | Yes | Yes | Yes | Yes |
+| Real-time AI-to-AI messaging | Yes | No | No | No |
+| Federation / multi-hub | Yes | No | No | No |
+| MCP native | Yes | No | No | No |
+| Self-hosted | Yes | Cloud + self-hosted | Self-hosted | Self-hosted |
+| No vendor lock-in | Yes | Partial | Partial | Yes |
+| Multi-agent coordination | WebSocket mesh | API only | Chain-based | Agent loop |
+| Works with any LLM | Yes (via MCP/REST) | Yes | LangChain ecosystem | OpenAI-focused |
+
+Mycelium's differentiator is the **Mycelium Network** — real-time
+WebSocket-based communication between AI agents — combined with
+federation for scaling across machines. Most memory solutions store and
+retrieve; Mycelium also lets your agents coordinate live.
 
 ## Project Structure
 
@@ -197,11 +290,20 @@ mycelium-memory-hub/
 │   ├── memory-hub-mcp.js    # Memory MCP server
 │   └── mycelium-network-mcp.js   # Mycelium MCP server
 ├── federation/               # Federation mesh (22 services)
+├── tests/                    # Jest test suite
 ├── Dockerfile
 ├── fly.toml
 └── .env.example
 ```
 
+## Built With AI
+
+This project was built with significant AI assistance (Claude). The
+architecture, code, and documentation were developed iteratively through
+human-AI collaboration. We think that's worth being upfront about — and
+it's a fitting origin story for a tool designed to make AIs work better
+together.
+
 ## License
 
-Apache 2.0 — see [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE).
