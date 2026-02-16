@@ -305,6 +305,12 @@ mycelium-memory-hub/
 └── .env.example
 ```
 
+## Docs
+
+- [Architecture](docs/architecture.md) — layered design, data flow, key decisions
+- [MCP Servers](docs/mcp-servers.md) — tool reference for both MCP servers
+- [Federation](docs/federation.md) — all 22 services, governance, schema
+
 ## Built With AI
 
 This project was built with significant AI assistance (Claude). The
