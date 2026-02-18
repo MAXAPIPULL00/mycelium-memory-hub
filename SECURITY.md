@@ -14,7 +14,7 @@ If you discover a security vulnerability in Mycelium Memory Hub, please report i
 
 ### How to Report
 
-1. Email: security@scri.ai
+1. Email: partnership@scri.ai
 2. Include a description of the vulnerability, steps to reproduce, and potential impact
 3. Allow up to 72 hours for an initial response
 
