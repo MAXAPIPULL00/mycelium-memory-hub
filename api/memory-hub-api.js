@@ -54,6 +54,9 @@ class MemoryHubAPI {
     // Add new conversation
     this.router.post('/conversations', async (req, res) => {
       try {
+        if (!req.body.message) {
+          return res.status(400).json({ success: false, error: 'message is required' });
+        }
         const conversation = {
           id: req.body.id || uuidv4(),
           platform: req.body.platform || 'unknown',
@@ -85,7 +88,7 @@ class MemoryHubAPI {
     this.router.get('/conversations/project/:projectId', async (req, res) => {
       try {
         const { projectId } = req.params;
-        const limit = parseInt(req.query.limit) || 100;
+        const limit = Math.min(parseInt(req.query.limit) || 100, 500);
         const platform = req.query.platform;
 
         let conversations;
@@ -116,7 +119,7 @@ class MemoryHubAPI {
     this.router.get('/conversations/platform/:platform', async (req, res) => {
       try {
         const { platform } = req.params;
-        const limit = parseInt(req.query.limit) || 100;
+        const limit = Math.min(parseInt(req.query.limit) || 100, 500);
 
         const conversations = await this.memoryHub.getConversationsByPlatform(platform, limit);
 
@@ -302,6 +305,9 @@ class MemoryHubAPI {
     this.router.post('/patterns', async (req, res) => {
       try {
         const { projectId, patternType, patternData, successRate } = req.body;
+        if (!projectId || !patternType || !patternData) {
+          return res.status(400).json({ success: false, error: 'projectId, patternType, and patternData are required' });
+        }
 
         const patternId = await this.memoryHub.addPattern(
           projectId,
@@ -454,7 +460,8 @@ class MemoryHubAPI {
     // Search conversations
     this.router.get('/search', async (req, res) => {
       try {
-        const { q, platform, projectId, type, limit = 50 } = req.query;
+        const { q, platform, projectId, type } = req.query;
+        const limit = Math.min(parseInt(req.query.limit) || 50, 500);
         
         if (!q) {
           return res.status(400).json({
@@ -719,7 +726,10 @@ class MemoryHubAPI {
     this.router.post('/memory', async (req, res) => {
       try {
         const { message, context, platform, project_id, memory_type } = req.body;
-        
+        if (!message && !req.body.content) {
+          return res.status(400).json({ success: false, error: 'message or content is required' });
+        }
+
         const memory = {
           id: uuidv4(),
           platform: platform || 'generic',
@@ -751,7 +761,8 @@ class MemoryHubAPI {
     // Get conversations (generic endpoint)
     this.router.get('/memory/conversations', async (req, res) => {
       try {
-        const { platform, project_id, limit = 100 } = req.query;
+        const { platform, project_id } = req.query;
+        const limit = Math.min(parseInt(req.query.limit) || 100, 500);
         
         let conversations;
         if (platform) {
@@ -789,7 +800,8 @@ class MemoryHubAPI {
     // Search memories (generic endpoint)
     this.router.post('/memory/search', async (req, res) => {
       try {
-        const { query, platform, project_id, limit = 50 } = req.body;
+        const { query, platform, project_id } = req.body;
+        const limit = Math.min(parseInt(req.body.limit) || 50, 500);
         
         if (!query) {
           return res.status(400).json({
@@ -886,7 +898,8 @@ class MemoryHubAPI {
 
     this.router.get('/scri/chappie/memories', async (req, res) => {
       try {
-        const { limit = 100, type, project_id } = req.query;
+        const { type, project_id } = req.query;
+        const limit = Math.min(parseInt(req.query.limit) || 100, 500);
         let conversations = await this.memoryHub.getConversationsByPlatform('chappie', limit);
         
         // Filter by type if specified

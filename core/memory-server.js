@@ -5,6 +5,7 @@ const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const cors = require('cors');
+const helmet = require('helmet');
 const path = require('path');
 const fs = require('fs-extra');
 const { v4: uuidv4 } = require('uuid');
@@ -16,6 +17,7 @@ const ProjectScanner = require('./project-scanner');
 const { WebChatBridge, VSCodeBridge } = require('../bridges/platform-bridges');
 const ExternalBridgeManager = require('../bridges/external-bridge-manager');
 const MyceliumBridge = require('../bridges/mycelium-bridge');
+const { validateString, validateOptionalString, validateObject, validatePayloadSize, createSocketRateLimiter } = require('./socket-validator');
 
 // Federation Hub v2
 let FederationHub;
@@ -29,8 +31,19 @@ class MemoryHub {
   constructor() {
     this.app = express();
     this.server = http.createServer(this.app);
+    const wsOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000,http://localhost:3001').split(',').map(s => s.trim());
     this.io = socketIo(this.server, {
-      cors: { origin: process.env.CORS_ORIGIN || "*", methods: ["GET", "POST"] }
+      cors: {
+        origin: function(origin, callback) {
+          if (!origin) return callback(null, true); // Allow non-browser clients (MCP, curl)
+          if (wsOrigins.includes(origin) || origin.startsWith('vscode-extension://')) {
+            return callback(null, true);
+          }
+          callback(new Error('Not allowed by CORS'));
+        },
+        methods: ["GET", "POST"],
+        credentials: true
+      }
     });
     
     // Core components
@@ -56,6 +69,7 @@ class MemoryHub {
   }
 
   setupMiddleware() {
+    this.app.use(helmet());
     const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000,http://localhost:3001').split(',');
     this.app.use(cors({
       origin: function(origin, callback) {
@@ -246,12 +260,31 @@ class MemoryHub {
   }
 
   setupWebSocket() {
+    const rateLimiter = createSocketRateLimiter();
+
     this.io.on('connection', (socket) => {
       console.log(`🔌 New connection: ${socket.id}`);
 
+      // Rate limiting middleware for all events
+      const originalEmit = socket.onevent;
+      socket.onevent = function(packet) {
+        const rate = rateLimiter(socket);
+        if (!rate.allowed) {
+          socket.emit('error', { message: 'Rate limit exceeded', retryAfter: rate.retryAfter });
+          return;
+        }
+        originalEmit.call(socket, packet);
+      };
+
       // Platform registration
       socket.on('register-platform', (data) => {
-        const { platform, projectId } = data;
+        const sizeCheck = validatePayloadSize(data);
+        if (!sizeCheck.valid) return socket.emit('error', { message: sizeCheck.error });
+        const { platform, projectId } = data || {};
+        const pv = validateString(platform, 'platform', 200);
+        if (!pv.valid) return socket.emit('error', { message: pv.error });
+        const piv = validateOptionalString(projectId, 'projectId', 200);
+        if (!piv.valid) return socket.emit('error', { message: piv.error });
         socket.platform = platform;
         socket.projectId = projectId;
         
@@ -273,6 +306,12 @@ class MemoryHub {
       // Real-time conversation sync
       socket.on('conversation', async (data) => {
         try {
+          const sizeCheck = validatePayloadSize(data);
+          if (!sizeCheck.valid) return socket.emit('error', { message: sizeCheck.error });
+          const mv = validateString(data.message, 'message');
+          if (!mv.valid) return socket.emit('error', { message: mv.error });
+          const cv = validateObject(data.context, 'context');
+          if (!cv.valid) return socket.emit('error', { message: cv.error });
           const conversationId = await this.contextManager.addConversation(
             socket.platform,
             socket.projectId,
@@ -425,7 +464,11 @@ class MemoryHub {
       
       // Register as AI coordinator
       socket.on('register-ai-coordinator', (data) => {
-        const { ai_agent, project_id, platform } = data;
+        const sizeCheck = validatePayloadSize(data);
+        if (!sizeCheck.valid) return socket.emit('error', { message: sizeCheck.error });
+        const { ai_agent, project_id, platform } = data || {};
+        const av = validateString(ai_agent, 'ai_agent', 200);
+        if (!av.valid) return socket.emit('error', { message: av.error });
         socket.ai_agent = ai_agent;
         socket.ai_project = project_id;
         socket.ai_platform = platform;
@@ -606,7 +649,11 @@ class MemoryHub {
       
       // AI registration for room-based messaging (NEXUS CNS Integration)
       socket.on('ai:register', (data) => {
-        const { ai_name, ai_type, project_directory } = data;
+        const sizeCheck = validatePayloadSize(data);
+        if (!sizeCheck.valid) return socket.emit('error', { message: sizeCheck.error });
+        const { ai_name, ai_type, project_directory } = data || {};
+        const nv = validateString(ai_name, 'ai_name', 200);
+        if (!nv.valid) return socket.emit('error', { message: nv.error });
         socket.ai_name = ai_name;
         socket.ai_type = ai_type;
         socket.join(ai_name); // Join room with AI name for targeted messages
@@ -630,7 +677,15 @@ class MemoryHub {
       // AI sends message to another AI (for CNS conversation tracking)
       socket.on('ai:send-message', async (data) => {
         try {
-          const { from, to, message, priority } = data;
+          const sizeCheck = validatePayloadSize(data);
+          if (!sizeCheck.valid) return socket.emit('error', { message: sizeCheck.error });
+          const { from, to, message, priority } = data || {};
+          const fv = validateString(from, 'from', 200);
+          if (!fv.valid) return socket.emit('error', { message: fv.error });
+          const tv = validateString(to, 'to', 200);
+          if (!tv.valid) return socket.emit('error', { message: tv.error });
+          const mv = validateString(message, 'message');
+          if (!mv.valid) return socket.emit('error', { message: mv.error });
           console.log(`📨 CNS AI message: ${from} → ${to} (Priority: ${priority || 'normal'})`);
 
           const conversation = {

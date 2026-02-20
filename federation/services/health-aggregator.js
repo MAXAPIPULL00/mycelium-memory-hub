@@ -3,6 +3,7 @@
 // Requirements: 3.1-3.7
 
 const { v4: uuidv4 } = require('uuid');
+const axios = require('axios');
 
 class FederationHealthAggregator {
   constructor(federationHub) {
@@ -271,9 +272,24 @@ class FederationHealthAggregator {
         if (subscription.channel === 'websocket' && subscription.socket) {
           subscription.socket.emit('federation:health-alert', alert);
         }
-        // TODO: Implement webhook delivery
+        if (subscription.channel === 'webhook' && subscription.url) {
+          this._deliverWebhook(subscription.url, alert).catch(err => {
+            console.warn(`⚠️ Webhook delivery failed for ${subscription.url}: ${err.message}`);
+          });
+        }
       }
     }
+  }
+
+  async _deliverWebhook(url, alert) {
+    await axios.post(url, {
+      event: 'federation.health.alert',
+      alert,
+      timestamp: new Date().toISOString(),
+    }, {
+      timeout: 5000,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 
   // Get active alerts (last hour)

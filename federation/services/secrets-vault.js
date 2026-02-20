@@ -4,18 +4,59 @@
 
 const { v4: uuidv4 } = require('uuid');
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 
 class FederationSecretsVault {
   constructor(federationHub) {
     this.hub = federationHub;
     this.db = federationHub.db;
-    
-    // Encryption key (in production, use KMS or HSM)
-    this.encryptionKey = process.env.SECRETS_ENCRYPTION_KEY || 
-      crypto.randomBytes(32).toString('hex');
-    
+
+    // Resolve encryption key with persistence
+    this.encryptionKey = this._resolveEncryptionKey();
+
     // In-memory cache of secret metadata (not values)
     this.secretsMetadata = new Map();
+  }
+
+  _resolveEncryptionKey() {
+    // 1. Environment variable (highest priority)
+    if (process.env.SECRETS_ENCRYPTION_KEY) {
+      return process.env.SECRETS_ENCRYPTION_KEY;
+    }
+
+    // 2. Persisted key file
+    const keyFilePath = path.join(
+      process.env.FEDERATION_DATA_DIR || './data',
+      '.secrets-vault-key'
+    );
+
+    if (fs.existsSync(keyFilePath)) {
+      const key = fs.readFileSync(keyFilePath, 'utf8').trim();
+      if (key.length === 64) {
+        console.warn(
+          'WARNING: Using persisted encryption key from file. ' +
+          'Set SECRETS_ENCRYPTION_KEY env var for production.'
+        );
+        return key;
+      }
+    }
+
+    // 3. Generate and persist new key
+    const newKey = crypto.randomBytes(32).toString('hex');
+    try {
+      const dir = path.dirname(keyFilePath);
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(keyFilePath, newKey, { mode: 0o600 });
+      console.warn(
+        'WARNING: Generated new encryption key and saved to ' + keyFilePath + '. ' +
+        'Set SECRETS_ENCRYPTION_KEY env var for production.'
+      );
+    } catch (err) {
+      console.error('CRITICAL: Could not persist encryption key:', err.message);
+      console.error('Secrets encrypted this session will be lost on restart!');
+    }
+    return newKey;
   }
 
   async initialize() {

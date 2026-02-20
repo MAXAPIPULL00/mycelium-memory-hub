@@ -130,7 +130,7 @@ module.exports = {
   
   // Security settings
   security: {
-    api_key_required: false, // Set to true in production
+    api_key_required: process.env.NODE_ENV === 'production',
     allowed_origins: [
       'http://localhost:3000',
       'http://localhost:3001', 

@@ -116,17 +116,44 @@ class FederationWebSocketPool {
     }
   }
 
-  // Authenticate connection
+  // Authenticate connection using identity-auth service
   async authenticateConnection(nodeId, token, signature) {
-    // For now, accept any valid-looking credentials
-    // In production, verify against stored tokens/signatures
     if (!nodeId || !token) {
       return { success: false, error: 'Missing node_id or auth_token' };
     }
-    
-    // TODO: Implement proper token validation against federation_auth_tokens table
-    // TODO: Implement signature verification using node's public key
-    
+
+    // Validate token via identity-auth service
+    if (this.hub.identityAuth) {
+      const tokenResult = this.hub.identityAuth.validateToken(token);
+      if (!tokenResult.valid) {
+        console.warn(`Auth failed for node '${nodeId}': ${tokenResult.error || 'invalid token'}`);
+        return { success: false, error: tokenResult.error || 'Invalid auth token' };
+      }
+
+      // Verify the token belongs to the claimed node
+      if (tokenResult.node_id && tokenResult.node_id !== nodeId) {
+        console.warn(`Auth mismatch: token for '${tokenResult.node_id}' used by '${nodeId}'`);
+        return { success: false, error: 'Token does not match node_id' };
+      }
+
+      // If signature provided, verify it
+      if (signature) {
+        const sigResult = this.hub.identityAuth.verifySignature(
+          nodeId,
+          `${nodeId}:${token}`,
+          signature
+        );
+        if (!sigResult.valid) {
+          console.warn(`Signature verification failed for node '${nodeId}'`);
+          return { success: false, error: sigResult.error || 'Invalid signature' };
+        }
+      }
+
+      return { success: true, node_id: tokenResult.node_id, scopes: tokenResult.scopes };
+    }
+
+    // Fallback: if identity-auth not initialized, allow with warning
+    console.warn('WARNING: identity-auth not available, accepting connection without validation');
     return { success: true };
   }
 
@@ -363,15 +390,27 @@ class FederationWebSocketPool {
     this.connections.delete(nodeId);
   }
 
-  // Queue message for offline node
+  // Queue message for offline node (in-memory + database persistence)
   async queueOfflineMessage(nodeId, message) {
     const session = this.sessionStates.get(nodeId);
     if (session) {
-      session.pendingMessages.push(message);
+      // Cap in-memory queue at 100 messages
+      if (session.pendingMessages.length < 100) {
+        session.pendingMessages.push(message);
+      }
     }
-    
-    // Also persist to database for longer-term storage
-    // TODO: Implement federation_pending_messages storage
+
+    // Persist to database for longer-term storage
+    try {
+      await this.db.run(`
+        INSERT INTO federation_pending_messages
+        (node_id, message_data, created_at)
+        VALUES (?, ?, ?)
+      `, [nodeId, JSON.stringify(message), new Date().toISOString()]);
+    } catch (error) {
+      // Table may not exist yet — log and continue
+      console.log(`⚠️ Could not persist offline message for ${nodeId}: ${error.message}`);
+    }
   }
 
   // Clean up expired sessions

@@ -25,8 +25,10 @@ class MyceliumBridge extends EventEmitter {
     
     // Entity management
     this.connectedEntities = new Map();
-    this.approvedEntities = new Set();
+    this.approvedEntities = new Map(); // entityId -> { approvedAt, lastSeen }
     this.pendingApprovals = [];
+    this.entityTtlMs = parseInt(process.env.ENTITY_TTL_MS) || 86400000; // 24h default
+    this._entityCleanupInterval = null;
     this.trustedIntroducers = new Set(
       (config.trustedIntroducers || process.env.TRUSTED_INTRODUCERS || '').split(',').filter(Boolean)
     );
@@ -54,6 +56,7 @@ class MyceliumBridge extends EventEmitter {
       this.setupBridge();
       this.setupApprovalSystem();
       this.processQueuedMessages();
+      this._startEntityCleanup();
       
       console.log('✅ Mycelium Bridge operational');
       console.log(`   Local Daemon: ${this.localConnected ? '✅' : '❌'}`);
@@ -246,8 +249,8 @@ class MyceliumBridge extends EventEmitter {
       approved_by: registration.introduced_by || 'Auto-Approved'
     };
 
-    // Add to approved set
-    this.approvedEntities.add(entity.id);
+    // Add to approved entities with timestamp
+    this.approvedEntities.set(entity.id, { approvedAt: Date.now(), lastSeen: Date.now() });
     this.connectedEntities.set(entity.id, entity);
 
     // Connect to requested networks
@@ -415,9 +418,39 @@ class MyceliumBridge extends EventEmitter {
   // ============================================
   
   validateEntityToken(token) {
-    // TODO: Implement token validation
-    // For now, accept tokens starting with 'scri-entity-'
-    return token && token.startsWith('scri-entity-');
+    if (!token || typeof token !== 'string') return false;
+
+    const secret = process.env.ENTITY_TOKEN_SECRET || this.config.entityTokenSecret;
+    if (!secret) {
+      // No secret configured — fall back to prefix check with warning
+      console.warn('WARNING: ENTITY_TOKEN_SECRET not set, using weak prefix-based validation');
+      return token.startsWith('scri-entity-');
+    }
+
+    // Token format: scri-entity-{entityId}-{hmac}
+    const parts = token.split('-');
+    if (parts.length < 4 || parts[0] !== 'scri' || parts[1] !== 'entity') {
+      return false;
+    }
+
+    const hmacProvided = parts[parts.length - 1];
+    const entityId = parts.slice(2, -1).join('-');
+
+    const crypto = require('crypto');
+    const hmacExpected = crypto
+      .createHmac('sha256', secret)
+      .update(entityId)
+      .digest('hex')
+      .substring(0, 16);
+
+    try {
+      return crypto.timingSafeEqual(
+        Buffer.from(hmacProvided, 'hex'),
+        Buffer.from(hmacExpected, 'hex')
+      );
+    } catch {
+      return false;
+    }
   }
 
   getConnectedEntities() {
@@ -432,16 +465,33 @@ class MyceliumBridge extends EventEmitter {
     return this.connectedEntities.get(id);
   }
 
+  _startEntityCleanup() {
+    this._entityCleanupInterval = setInterval(() => {
+      const now = Date.now();
+      for (const [entityId, meta] of this.approvedEntities) {
+        if (now - meta.lastSeen > this.entityTtlMs) {
+          this.approvedEntities.delete(entityId);
+          this.connectedEntities.delete(entityId);
+          console.log(`🧹 Expired entity ${entityId} (TTL exceeded)`);
+        }
+      }
+    }, 60000); // Check every 60 seconds
+  }
+
   async disconnect() {
     console.log('🔌 Disconnecting mycelium bridge...');
-    
+
+    if (this._entityCleanupInterval) {
+      clearInterval(this._entityCleanupInterval);
+      this._entityCleanupInterval = null;
+    }
     if (this.localDaemon) {
       this.localDaemon.disconnect();
     }
     if (this.cloudHub) {
       this.cloudHub.disconnect();
     }
-    
+
     this.emit('bridge:disconnected');
   }
 }
